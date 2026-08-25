@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/Khaymat/OptiNemesis/main/schemas/contract.schema.json",
+  "title": "OptiNemesis Experimental Contract",
+  "description": "Immutable experimental conditions for a counterexample-discovery study. Version 1.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "family",
+    "bounds",
+    "budget",
+    "initialization_policy",
+    "seeds",
+    "metrics",
+    "thresholds",
+    "optimizers"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": "1" },
+    "contract_id": { "type": "string", "description": "Stable fingerprint of this contract." },
+    "family": {
+      "type": "object",
+      "required": ["name", "version", "theta", "dimension"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 },
+        "theta": { "type": "array", "items": { "type": "number" }, "minItems": 1 },
+        "dimension": { "type": "integer", "minimum": 1 },
+        "parameter_box": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "lower", "upper"],
+            "additionalProperties": false,
+            "properties": {
+              "name": { "type": "string" },
+              "lower": { "type": "number" },
+              "upper": { "type": "number" }
+            }
+          }
+        },
+        "transform_tags": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "bounds": {
+      "type": "object",
+      "required": ["lower", "upper"],
+      "additionalProperties": false,
+      "properties": {
+        "lower": { "type": "array", "items": { "type": "number" }, "minItems": 1 },
+        "upper": { "type": "array", "items": { "type": "number" }, "minItems": 1 }
+      }
+    },
+    "budget": { "type": "integer", "minimum": 1 },
+    "initialization_policy": { "enum": ["independent", "paired"] },
+    "seeds": {
+      "type": "object",
+      "required": ["root_entropy", "n_search_seeds", "n_validation_seeds"],
+      "additionalProperties": false,
+      "properties": {
+        "root_entropy": { "type": "string", "description": "Root entropy serialized as decimal string." },
+        "n_theta_candidates": { "type": "integer", "minimum": 1 },
+        "n_search_seeds": { "type": "integer", "minimum": 2 },
+        "n_validation_seeds": { "type": "integer", "minimum": 2 },
+        "meta_search_method": { "enum": ["random", "lhs"] }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "required": ["primary"],
+      "additionalProperties": false,
+      "properties": {
+        "primary": { "enum": ["rank_biserial", "median_gap", "probability_superiority"] },
+        "exploratory": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "enum": ["rank_biserial", "median_gap", "probability_superiority"] }
+        }
+      }
+    },
+    "thresholds": {
+      "type": "object",
+      "required": ["epsilon_min", "epsilon_zero", "alpha_validation"],
+      "additionalProperties": false,
+      "properties": {
+        "epsilon_min": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+        "epsilon_zero": { "type": "number", "minimum": 0 },
+        "alpha_search": { "type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 1 },
+        "alpha_validation": { "type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 1 },
+        "bootstrap_resamples": { "type": "integer", "minimum": 100 }
+      }
+    },
+    "optimizers": {
+      "type": "object",
+      "minProperties": 2,
+      "maxProperties": 2,
+      "additionalProperties": {
+        "type": "object",
+        "required": ["implementation"],
+        "properties": {
+          "implementation": { "type": "string", "minLength": 1 },
+          "config": { "type": "object" },
+          "seeded": { "type": "boolean" }
+        }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "python": { "type": "string" },
+        "numpy": { "type": "string" },
+        "scipy": { "type": "string" },
+        "optinemesis": { "type": "string" },
+        "platform": { "type": "string" }
+      }
+    }
+  }
+}

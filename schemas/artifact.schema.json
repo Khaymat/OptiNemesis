@@ -1,0 +1,142 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/Khaymat/OptiNemesis/main/schemas/artifact.schema.json",
+  "title": "OptiNemesis Reproduction Artifact",
+  "description": "Complete, code-free reproduction record of a counterexample-discovery study. Version 1.",
+  "type": "object",
+  "required": [
+    "artifact_schema_version",
+    "created_utc",
+    "contract",
+    "seed_tree",
+    "search_stage",
+    "validation_stage",
+    "fingerprints"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "artifact_schema_version": { "const": "1" },
+    "created_utc": { "type": "string", "format": "date-time" },
+    "contract": { "$ref": "contract.schema.json" },
+    "seed_tree": {
+      "type": "object",
+      "required": ["root_entropy", "derivation_recipe"],
+      "additionalProperties": false,
+      "properties": {
+        "root_entropy": { "type": "string" },
+        "derivation_recipe": { "type": "string", "minLength": 1 },
+        "subtree_labels": {
+          "type": "array",
+          "items": {
+            "enum": ["meta", "problem_search", "opt_a", "opt_b", "validation"]
+          }
+        }
+      }
+    },
+    "reference_direction": {
+      "type": "object",
+      "required": ["sample_size", "median_gap", "sign"],
+      "additionalProperties": false,
+      "properties": {
+        "sample_size": { "type": "integer", "minimum": 1 },
+        "median_gap": { "type": "number" },
+        "sign": { "enum": [-1, 0, 1] },
+        "note": { "type": "string" }
+      }
+    },
+    "search_stage": {
+      "type": "object",
+      "required": ["label", "evaluations"],
+      "additionalProperties": false,
+      "properties": {
+        "label": { "const": "Search stage (exploratory - not confirmatory evidence)" },
+        "evaluations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["theta", "effect", "lcb", "se"],
+            "additionalProperties": false,
+            "properties": {
+              "theta": { "type": "array", "items": { "type": "number" } },
+              "effect": { "type": "number", "description": "Rank-biserial point estimate." },
+              "lcb": { "type": "number", "description": "Optimism-penalized lower confidence bound." },
+              "se": { "type": "number", "minimum": 0 },
+              "median_regret_a": { "type": "number" },
+              "median_regret_b": { "type": "number" },
+              "probability_superiority": { "type": "number" },
+              "nominated": { "type": "boolean" }
+            }
+          }
+        }
+      }
+    },
+    "validation_stage": {
+      "type": "object",
+      "required": ["confirmed", "failed"],
+      "additionalProperties": false,
+      "properties": {
+        "holm_family_alpha": { "type": "number" },
+        "confirmed": { "$ref": "#/$defs/candidateList" },
+        "failed": { "$ref": "#/$defs/candidateList" }
+      }
+    },
+    "fingerprints": {
+      "type": "object",
+      "required": ["core_module", "registry"],
+      "additionalProperties": false,
+      "properties": {
+        "core_module": { "type": "string" },
+        "registry": { "type": "string" },
+        "contract_id": { "type": "string" }
+      }
+    }
+  },
+  "$defs": {
+    "candidateStats": {
+      "type": "object",
+      "required": [
+        "theta",
+        "effect",
+        "effect_ci_low",
+        "effect_ci_high",
+        "p_value_holm",
+        "test_name",
+        "n_validation_seeds",
+        "median_regret_a",
+        "median_regret_b",
+        "median_gap_ci_low",
+        "median_gap_ci_high"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "theta": { "type": "array", "items": { "type": "number" } },
+        "dimension": { "type": "integer", "minimum": 1 },
+        "effect": { "type": "number" },
+        "effect_ci_low": { "type": "number" },
+        "effect_ci_high": { "type": "number" },
+        "p_value_holm": { "type": "number", "minimum": 0, "maximum": 1 },
+        "p_value_raw": { "type": "number", "minimum": 0, "maximum": 1 },
+        "test_name": { "type": "string" },
+        "n_validation_seeds": { "type": "integer", "minimum": 2 },
+        "median_regret_a": { "type": "number" },
+        "median_regret_b": { "type": "number" },
+        "median_gap": { "type": "number" },
+        "median_gap_ci_low": { "type": "number" },
+        "median_gap_ci_high": { "type": "number" },
+        "probability_superiority": { "type": "number" },
+        "criteria": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "holm_significant": { "type": "boolean" },
+            "effect_threshold_met": { "type": "boolean" },
+            "ci_excludes_margin": { "type": "boolean" },
+            "reference_direction_opposed": { "type": "boolean" }
+          }
+        },
+        "failure_reasons": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "candidateList": { "type": "array", "items": { "$ref": "#/$defs/candidateStats" } }
+  }
+}
