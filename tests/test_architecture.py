@@ -75,8 +75,10 @@ def _layer_violations() -> list[str]:
                 continue
             imported_top = imported.split(".")[1]
             if is_adapter:
-                if imported_top != "core":
-                    violations.append(f"{own_module} imports {imported} (adapters: core only)")
+                if imported_top not in ("core", "adapters"):
+                    violations.append(
+                        f"{own_module} imports {imported} (adapters: core/adapters only)"
+                    )
                 continue
             target_layer = LAYER_OF.get(imported_top)
             if target_layer is not None and target_layer > own_layer:

@@ -87,6 +87,11 @@ median gap over the neutral Θ sample must have the opposite sign.
 ## 3. Evaluation-budget semantics
 
 - **Currency:** exact function evaluations. Nothing else.
+- **Budget is a cap, not a quota** (COCO convention). Backends that genuinely
+  converge before exhausting the budget may stop early *only* when
+  `termination_reason` records backend convergence; v0.1 adapters minimize early
+  stopping via zero tolerances wherever the backend permits. Comparisons under an
+  equal cap remain fair because every run may use up to `B` evaluations.
 - The harness owns the objective. Adapters receive a `CountingObjective` which
   increments a counter on every evaluation and raises `BudgetExhausted` when the
   budget would be exceeded.
