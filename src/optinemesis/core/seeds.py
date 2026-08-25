@@ -20,12 +20,14 @@ DERIVATION_RECIPE = (
     "SeedSequence(root).spawn(5) -> "
     "(meta, problem_search, opt_a, opt_b, validation); "
     "validation.spawn(3) -> (problem_val, opt_a_val, opt_b_val); "
-    "leaf seeds = SeedSequence.generate_state(1, dtype=uint64)"
+    "leaf seeds = SeedSequence.generate_state(1, dtype=uint32)"
 )
 
 
 def _leaf_seed(sequence: np.random.SeedSequence) -> int:
-    return int(sequence.generate_state(1, dtype=np.uint64)[0])
+    # 32-bit leaves keep every backend happy (scipy legacy RandomState
+    # rejects seeds >= 2**32); collision risk is acceptable for v0.1 scale.
+    return int(sequence.generate_state(1, dtype=np.uint32)[0])
 
 
 @dataclass(frozen=True)

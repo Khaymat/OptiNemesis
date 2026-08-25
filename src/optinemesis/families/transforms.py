@@ -54,16 +54,18 @@ def shifted_center(
     radius_fraction: float,
     generator: np.random.Generator,
 ) -> np.ndarray:
-    """Center placed uniformly in a shrunk box ``lower + margin``, ``upper - margin``.
+    """Center drawn uniformly from a box shrunk by ``radius_fraction`` per side.
 
-    ``radius_fraction`` in (0, 1) controls how far the center may sit from the
-    box boundary, mitigating boundary-bias exploitation.
+    ``radius_fraction`` in [0, 1): each coordinate is confined to
+    ``[lo + f*(hi-lo)/2, hi - f*(hi-lo)/2]``, i.e. the fraction refers to the
+    half-span, mitigating boundary-bias exploitation while remaining nonempty
+    for every valid fraction.
     """
-    if not 0.0 < radius_fraction < 1.0:
-        raise ValueError("radius_fraction must lie strictly inside (0, 1)")
+    if not 0.0 <= radius_fraction < 1.0:
+        raise ValueError("radius_fraction must lie in [0, 1)")
     lo = np.asarray(bounds_lower, dtype=float)
     hi = np.asarray(bounds_upper, dtype=float)
-    margin = radius_fraction * (hi - lo)
+    margin = 0.5 * radius_fraction * (hi - lo)
     return generator.uniform(lo + margin, hi - margin)
 
 

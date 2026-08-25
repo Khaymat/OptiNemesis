@@ -55,12 +55,18 @@ class TestHelpers:
         lo = np.full(4, -5.0)
         hi = np.full(4, 5.0)
         c = shifted_center(lo, hi, 0.3, np.random.default_rng(8))
-        assert np.all(c >= lo + 0.3 * (hi - lo) - 1e-12)
-        assert np.all(c <= hi - 0.3 * (hi - lo) + 1e-12)
+        assert np.all(c >= lo + 0.15 * (hi - lo) - 1e-12)
+        assert np.all(c <= hi - 0.15 * (hi - lo) + 1e-12)
+
+    def test_shifted_center_valid_for_fraction_above_half(self) -> None:
+        lo = np.full(3, -1.0)
+        hi = np.full(3, 1.0)
+        c = shifted_center(lo, hi, 0.9, np.random.default_rng(8))
+        assert np.all(c > lo) and np.all(c < hi)
 
     def test_shifted_center_rejects_bad_radius(self) -> None:
         with pytest.raises(ValueError):
-            shifted_center(np.zeros(2), np.ones(2), 0.0, np.random.default_rng(0))
+            shifted_center(np.zeros(2), np.ones(2), 1.0, np.random.default_rng(0))
 
     def test_corner_upper_bound_is_exact_at_corners(self) -> None:
         lo = np.array([-2.0, -3.0])
