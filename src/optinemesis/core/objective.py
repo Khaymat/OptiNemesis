@@ -29,6 +29,7 @@ class ProblemInstance:
     _evaluator: Callable[[np.ndarray], float] = field(repr=False, compare=False)
     landscape_tags: Mapping[str, float] = field(default_factory=dict)
     spec: Mapping[str, Any] = field(default_factory=dict)
+    optimum_x: np.ndarray | None = None
 
     def evaluate(self, x: np.ndarray) -> float:
         arr = np.asarray(x, dtype=float).reshape(-1)

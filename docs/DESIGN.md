@@ -184,9 +184,10 @@ Rules:
    analytic or constructive optima).
 4. Parameter ranges are fixed per family, finite, and interpretable; the registry
    rejects θ outside the declared box.
-5. Rotation uses Haar-distributed orthogonal matrices from spawned seeds; interpolation
-   between identity and full rotation uses a documented geodesic-style blend so that
-   rotation strength θ is monotone in Frobenius distance from identity.
+5. Rotation uses seeded random Givens rotations; the rotation-strength parameter
+   is interpreted as the fraction of principal coordinate planes rotated
+   (identity at 0, dense rotation at 1). Distance from identity grows in
+   expectation but is not monotone per seed; this is documented behavior.
 
 ## 9. Reproducibility guarantees and limitations
 
