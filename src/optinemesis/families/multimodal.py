@@ -46,7 +46,7 @@ class MultimodalBlendFamily(ProblemFamily):
     name: ClassVar[str] = "MultimodalBlend"
     version: ClassVar[str] = "1"
     parameter_box: ClassVar[tuple[ParamRange, ...]] = (
-        ParamRange("modality", 1.0, 3.0),
+        ParamRange("modality", 1.0, 6.0),
         ParamRange("separability_blend", 0.0, 1.0),
         ParamRange("shift_radius", 0.1, 0.9),
     )
