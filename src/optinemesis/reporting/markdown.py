@@ -86,7 +86,7 @@ def render_markdown(
     lines.append("")
     lines.append("| nominated | theta | effect | LCB | SE | median regret A / B | PS |")
     lines.append("|---|---|---|---|---|---|---|")
-    for e in sorted(search_result.evaluations, key=lambda x: x.lcb, reverse=True):
+    for e in sorted(search_result.evaluations, key=lambda x: abs(x.lcb), reverse=True):
         theta = "(" + ", ".join(_fmt(t) for t in e.theta) + ")"
         lines.append(
             f"| {'yes' if e.nominated else 'no'} | {theta} | {_fmt(e.effect)} "
@@ -126,10 +126,22 @@ def render_markdown(
         lines.append("")
         for c in validation_result.confirmed:
             theta = "(" + ", ".join(_fmt(t) for t in c.theta) + ")"
+            # Direction-aware phrasing: effect>0 => A worse, effect<0 => B worse
+            if c.effect > 0:
+                phrasing = (
+                    f"optimizer configuration `{name_a}` underperformed configuration `{name_b}`"
+                )
+            elif c.effect < 0:
+                phrasing = (
+                    f"optimizer configuration `{name_b}` underperformed configuration `{name_a}`"
+                )
+            else:
+                phrasing = (
+                    f"optimizer configurations `{name_a}` and `{name_b}` showed no directional gap"
+                )
             lines.append(
                 f"- Under this serialized experimental contract and on this validated "
-                f"region of problem family `{study.family.name}`, optimizer "
-                f"configuration `{name_a}` underperformed configuration `{name_b}` at "
+                f"region of problem family `{study.family.name}`, {phrasing} at "
                 f"theta = {theta}: median normalized regret "
                 f"{_fmt(c.median_regret_a)} vs {_fmt(c.median_regret_b)}, rank-biserial "
                 f"effect size {_fmt(c.effect)} (95% bootstrap CI "

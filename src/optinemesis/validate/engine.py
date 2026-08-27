@@ -74,8 +74,23 @@ def validate_candidates(search_result: SearchResult, study: StudySpec) -> Valida
     gap_cis: list[tuple[float, float]] = []
     medians: list[tuple[float, float]] = []
     pss: list[float] = []
+    # Derive per-candidate bootstrap RNG seeds deterministically and
+    # independently (disjoint from search seeds). Shared validation instance
+    # seeds remain intentionally shared for paired comparison across candidates
+    # (same problem instances for each candidate), but bootstrap resampling
+    # streams are independent per candidate. Use validation parent sequence
+    # directly (not meta) to avoid reusing meta seeds from search stage.
+    m = len(nominated)
+    # 2 seeds per candidate (effect CI, gap CI) from validation parent,
+    # distinct from grandchildren instance seeds.
+    val_parent = tree.validation.sequence
+    # skip first 3 that are problem/opt subtrees' parents
+    boot_seqs = val_parent.spawn(2 * m + 3)[3:]
+    leaf_seeds = [
+        int(s.generate_state(1, dtype=np.uint32)[0]) for s in boot_seqs
+    ]
 
-    for evaluation in nominated:
+    for idx, evaluation in enumerate(nominated):
         regrets_a, regrets_b = _validation_regrets(study, evaluation.theta, tree)
         wilcoxon_result = paired_wilcoxon(regrets_a, regrets_b)
         effect_ci = paired_bootstrap_ci(
@@ -84,7 +99,7 @@ def validate_candidates(search_result: SearchResult, study: StudySpec) -> Valida
             paired_rank_biserial,
             resamples=study.thresholds.bootstrap_resamples,
             level=1.0 - study.thresholds.alpha_validation,
-            root_seed=int(tree.meta.seeds(1)[0]),
+            root_seed=leaf_seeds[2 * idx],
         )
         gap_ci = paired_bootstrap_ci(
             regrets_a,
@@ -92,7 +107,7 @@ def validate_candidates(search_result: SearchResult, study: StudySpec) -> Valida
             median_gap,
             resamples=study.thresholds.bootstrap_resamples,
             level=1.0 - study.thresholds.alpha_validation,
-            root_seed=int(tree.meta.seeds(1)[0]) + 1,
+            root_seed=leaf_seeds[2 * idx + 1],
         )
         raw_p.append(wilcoxon_result.p_value)
         effects.append(paired_rank_biserial(regrets_a, regrets_b))
@@ -110,13 +125,25 @@ def validate_candidates(search_result: SearchResult, study: StudySpec) -> Valida
     failed: list[CandidateOutcome] = []
     for i, evaluation in enumerate(nominated):
         gap_low, gap_high = gap_cis[i]
+        eff = effects[i]
+        # Symmetric reversal: sign(effect) must oppose sign(reference_gap)
+        # and magnitude thresholds are applied direction-aware.
+        if eff > 0:
+            ci_excludes = bool(gap_low > epsilon_zero)
+        elif eff < 0:
+            ci_excludes = bool(gap_high < -epsilon_zero)
+        else:
+            ci_excludes = False
+        ref_opposed = bool(
+            reference_sign != 0
+            and eff != 0
+            and (1 if eff > 0 else -1) != reference_sign
+        )
         flags = CriteriaFlags(
             holm_significant=bool(adjusted[i] < study.thresholds.alpha_validation),
-            effect_threshold_met=bool(effects[i] >= epsilon_min),
-            ci_excludes_margin=bool(gap_low > epsilon_zero),
-            reference_direction_opposed=bool(
-                reference_sign < 0 and effects[i] > 0
-            ),
+            effect_threshold_met=bool(abs(eff) >= epsilon_min),
+            ci_excludes_margin=ci_excludes,
+            reference_direction_opposed=ref_opposed,
         )
         outcome = CandidateOutcome(
             theta=evaluation.theta,

@@ -83,9 +83,11 @@ def test_study_reconstruction_roundtrip(completed: tuple[StudySpec, str]) -> Non
     assert rebuilt.family.name == original.family.name
     assert rebuilt.dimension == original.dimension
     assert rebuilt.budget == original.budget
-    assert [o.name for o in rebuilt.optimizers] == ["de", "rand"]
+    assert [o.name for o in rebuilt.optimizers] == [o.name for o in original.optimizers]
     assert rebuilt.seeds.root_entropy == original.seeds.root_entropy
     assert rebuilt.thresholds.epsilon_min == original.thresholds.epsilon_min
+    # Order must be preserved (not alphabetically sorted)
+    assert [o.name for o in rebuilt.optimizers] == ["rand", "de"]
 
 
 def test_replayed_instance_matches_live_generation(

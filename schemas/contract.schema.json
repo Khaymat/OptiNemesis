@@ -54,7 +54,14 @@
       }
     },
     "budget": { "type": "integer", "minimum": 1 },
-    "initialization_policy": { "enum": ["independent", "paired"] },
+    "initialization_policy": { "enum": ["independent"] },
+    "optimizer_order": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 2,
+      "maxItems": 2,
+      "description": "Preserves A/B optimizer label order through sorted JSON serialization."
+    },
     "seeds": {
       "type": "object",
       "required": ["root_entropy", "n_search_seeds", "n_validation_seeds"],

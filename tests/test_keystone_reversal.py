@@ -52,7 +52,7 @@ def make_keystone_study(root_entropy: int = 1953) -> StudySpec:
         seeds=SeedPlan(
             root_entropy=str(root_entropy),
             n_theta_candidates=20,
-            n_search_seeds=4,
+            n_search_seeds=10,
             n_validation_seeds=16,
             meta_search_method="lhs",
         ),
@@ -107,7 +107,7 @@ def test_nomination_targets_the_reversal_region(pipeline) -> None:  # type: igno
     nominated = search.nominated
     assert nominated, "keystone must nominate at least one smooth-regime candidate"
     for candidate in nominated:
-        assert candidate.lcb >= make_keystone_study().thresholds.epsilon_min
+        assert abs(candidate.lcb) >= make_keystone_study().thresholds.epsilon_min
         assert candidate.theta[0] < 0.3, (
             "nominated candidates must lie in the smooth regime (flip < 0.3)"
         )

@@ -66,23 +66,45 @@ median gap `Δ̄`, probability of superiority `PS = P(ρ_A > ρ_B)`.
 **Nomination criterion (search stage):** maximize the optimism-penalized estimate
 
 ```
-LCB(θ) = δ̂(θ) − z_{1−α_s} · SE_boot(δ̂(θ))
+LCB_towards_zero(θ) = δ̂(θ) − z_{1−α_s}·SE_boot  if δ̂≥0
+                     = δ̂(θ) + z_{1−α_s}·SE_boot  if δ̂<0   (bound towards zero)
 ```
 
-with bootstrap standard error (percentile-bootstrap half-width), `z` the standard
-normal quantile at search confidence level `α_s` (default 95%). Candidates advance iff
-`LCB ≥ ε_min`.
+with bootstrap standard error `SE_boot = std(bootstrap replicates)` at level
+`1−α_s` (`z` the standard normal quantile, default 95%).  The absolute
+conservative magnitude `|LCB_towards_zero|` ranks candidates symmetrically so
+swapping labels `A↔B` (which negates `δ`) preserves the nominated set up to
+sign. Candidates advance iff `|LCB_towards_zero| ≥ ε_min`.
 
-**Confirmation criteria (validation stage), all mandatory:**
-1. Wilcoxon signed-rank test on matched pairs (paired-init mode) or a permutation test
-   on the difference of medians / Mann–Whitney-derived effect size (default mode),
-   Holm-corrected across all validated candidates at family-wise α_v (default 0.05);
-2. validation rank-biserial `δ̂_val ≥ ε_min`;
-3. validation bootstrap CI of the chosen secondary gap excludes the practical-equivalence
-   margin `ε₀`.
+*Finite-sample degeneracy:* when all paired differences have the same sign,
+`δ̂=±1` and every bootstrap replicate is `±1` ⇒ `SE_boot=0` and naive
+`LCB=±1` overstates confidence for small `n`. In this perfect-separation case
+OptiNemesis replaces the normal approximation with the exact Clopper-Pearson
+lower bound for `p = P(ρ_A > ρ_B)` (binomial `k=n` successes): `L_p = α_s^{1/n}`,
+mapped to rank-biserial as `L_δ = 2·L_p −1`. The signed conservative bound is
+`sign(δ̂)·L_δ`. This is distribution-free, guarantees coverage, and penalizes
+small-`n` perfect separation (e.g. `n=4, α=0.05 → L_δ≈−0.05` not nominated;
+`n=10 → L_δ≈0.48` nominated). Otherwise the bootstrap normal bound is used.
 
-A reversal claim additionally requires the reference direction: the aggregate
-median gap over the neutral Θ sample must have the opposite sign.
+*Search bootstrap cap:* `bootstrap_resamples` is 10 000 by default but the
+search stage caps it at `min(500, bootstrap_resamples)` `src/optinemesis/search/engine.py:102`
+for speed; validation always uses the full count. Thresholds are otherwise
+identical.
+
+**Confirmation criteria (validation stage), all mandatory and symmetric:**
+1. Wilcoxon signed-rank test on matched pairs, Holm-corrected across all
+   validated candidates at family-wise `α_v` (default 0.05);
+2. validation rank-biserial `|δ̂_val| ≥ ε_min` (absolute, so swapping labels preserves the test);
+3. validation bootstrap CI of the secondary gap excludes the practical-equivalence
+   margin `ε₀` in the claimed direction: `CI_low > ε₀` if `δ̂_val>0`,
+   `CI_high < −ε₀` if `δ̂_val<0`;
+4. reversal: `sign(δ̂_val) ≠ 0`, `sign(reference_gap) ≠ 0`, and `sign(δ̂_val) ≠ sign(reference_gap)`.
+   The reference direction is the sign of the median gap over the neutral
+   `Θ` sample; a candidate is a reversal only when its effect sign opposes
+   that reference. The absolute-value formulation makes swapping `A↔B`
+   (which negates both `δ̂_val` and the reference gap) preserve confirmability.
+
+A reversal claim additionally requires the reference direction condition (4).
 
 ## 3. Evaluation-budget semantics
 
@@ -114,11 +136,17 @@ The immutable `Contract` records, before execution:
 - dimension(s) `d` (each d is a separate experiment key);
 - box bounds `[lo, hi]` (identical for all optimizers);
 - evaluation budget `B` (integer, identical);
-- initialization policy: `"independent"` (default; each configuration uses its own
-  seeded initialization) or `"paired"` (identical initial points injected where the
-  backend supports injection; deviations flagged, never hidden);
+- initialization policy: `"independent"` (only supported value in v0.1; each
+  configuration uses its own seeded initialization from disjoint `SeedTree`
+  subtrees). `"paired"` was removed in the correctness rework because
+  heterogeneous adapters (population-based `differential_evolution` vs
+  single-point `L-BFGS-B`/`Nelder-Mead`/`Powell` vs `builtin.random_search`)
+  have fundamentally different initialization mechanisms; faking identical
+  initial conditions would be scientifically dishonest. Future paired support
+  would require per-adapter injection contracts.
 - seed counts: `n_search_seeds`, `n_validation_seeds`, meta-search sample count;
-- primary metric name (closed enum, fixed pre-execution) and exploratory metrics list;
+- primary metric name (frozen to `rank_biserial` for v0.1; `MetricPlan` validates but
+  rejects other values until `epsilon_min` can be recalibrated per metric) and exploratory metrics list;
 - practical thresholds: `ε_min` (effect), `ε₀` (equivalence margin), α levels;
 - optimizer configuration specs (serialized verbatim).
 

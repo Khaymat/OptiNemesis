@@ -183,15 +183,33 @@ def load_study_from_artifact(data: dict[str, Any]) -> StudySpec:
         Thresholds,
     )
 
-    optimizers = tuple(
-        OptimizerSpec(
-            name=name,
-            implementation=payload["implementation"],
-            config=dict(payload.get("config", {})),
-            seeded=bool(payload.get("seeded", True)),
+    # Preserve A/B order via explicit optimizer_order array (survives
+    # JSON sort_keys). Fall back to insertion order for old artifacts without
+    # the field (pre-fix) — not sorted, to avoid reintroducing the bug.
+    order = contract.get("optimizer_order")
+    if order is not None:
+        if not isinstance(order, list) or len(order) != 2:
+            raise ArtifactError("contract.optimizer_order must be a 2-element list")
+        optimizers = tuple(
+            OptimizerSpec(
+                name=name,
+                implementation=contract["optimizers"][name]["implementation"],
+                config=dict(contract["optimizers"][name].get("config", {})),
+                seeded=bool(contract["optimizers"][name].get("seeded", True)),
+            )
+            for name in order
         )
-        for name, payload in sorted(contract["optimizers"].items())
-    )
+    else:
+        # Old artifact: respect JSON insertion order (Python 3.7+ preserves it)
+        optimizers = tuple(
+            OptimizerSpec(
+                name=name,
+                implementation=payload["implementation"],
+                config=dict(payload.get("config", {})),
+                seeded=bool(payload.get("seeded", True)),
+            )
+            for name, payload in contract["optimizers"].items()
+        )
     environment = None
     env_payload = contract.get("environment")
     if env_payload:

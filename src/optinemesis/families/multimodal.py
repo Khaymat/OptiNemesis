@@ -1,9 +1,9 @@
 """Multimodal Rastrigin blend with controllable modality and separability.
 
 Parameters:
-    modality          m  in [1, 3]   local-basin frequency (amplitude compensated)
+    modality          m  in [1, 6]   local-basin frequency (amplitude compensated)
     separability_blend s in [0, 1]   0 = separable in native coordinates,
-                                    1 = fully rotated (non-separable) form
+                                     1 = fully rotated (non-separable) form
     shift_radius      rho in (0, 1)   optimum placement margin
 
 Known optimum: f(x*) = 0 at the seeded shifted center, analytically exact:

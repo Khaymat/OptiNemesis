@@ -68,7 +68,29 @@ def evaluate_theta(
         root_seed=bootstrap_root,
     )
     z_value = float(normal.ppf(1.0 - study.thresholds.alpha_search))
-    lcb = effect - z_value * ci.se
+    # Symmetric conservative bound towards zero; direction-aware.
+    # Degenerate bootstrap SE=0 at perfect separation (all differences same
+    # sign) yields SE=0 and LCB=effect=±1, overstating confidence for small n.
+    # In that case use exact Clopper-Pearson lower bound for PS mapped to
+    # rank-biserial: L = 2*alpha^{1/n} -1 (k=n successes). Gives finite-sample
+    # guaranteed coverage without arbitrary epsilon. See DESIGN.md §2.
+    if ci.se < 1e-12 and abs(abs(effect) - 1.0) < 1e-9:
+        n = regrets_a.size
+        alpha = study.thresholds.alpha_search
+        # alpha in (0,1); for n≥1, L in [-1,1)
+        l_abs = 2.0 * (alpha ** (1.0 / float(n))) - 1.0
+        # signed conservative bound towards zero
+        if effect > 0:
+            lcb = float(l_abs)
+        elif effect < 0:
+            lcb = float(-l_abs)
+        else:
+            lcb = 0.0
+    else:
+        if effect >= 0:
+            lcb = effect - z_value * ci.se
+        else:
+            lcb = effect + z_value * ci.se
     return CandidateEvaluation(
         theta=theta,
         effect=effect,
@@ -118,12 +140,32 @@ def run_search(study: StudySpec) -> SearchResult:
     )
 
     epsilon_min = study.thresholds.epsilon_min
-    ranked = sorted(
-        range(len(evaluations)), key=lambda i: evaluations[i].lcb, reverse=True
-    )
-    nominated_indices = {
-        i for i in ranked[:5] if evaluations[i].lcb >= epsilon_min
-    }
+    # Symmetric, reference-aware nomination.
+    # Reference defines the neutral ranking; a reversal is an effect whose
+    # sign opposes the reference. Nomination therefore considers only
+    # candidates whose sign is opposite the reference (or any sign if
+    # reference is 0, but then validation will reject via reference gate).
+    # This makes swapping A↔B (which flips both effect and reference) preserve
+    # the nominated theta set, satisfying label-swap symmetry.
+    # lcb is signed conservative bound towards zero; abs(lcb) is magnitude.
+    if reference_sign == 0:
+        # No reference direction — nothing can be a reversal by definition
+        nominated_indices: set[int] = set()
+    else:
+        need_sign = -reference_sign  # 1 => need -1, -1 => need 1
+        # Filter to reversal candidates first, then rank by magnitude
+        def _sign(v: float) -> int:
+            return 1 if v > 0 else -1 if v < 0 else 0
+
+        reversal_indices = [
+            i for i, e in enumerate(evaluations) if _sign(e.effect) == need_sign
+        ]
+        ranked = sorted(
+            reversal_indices, key=lambda i: abs(evaluations[i].lcb), reverse=True
+        )
+        nominated_indices = {
+            i for i in ranked[:5] if abs(evaluations[i].lcb) >= epsilon_min
+        }
     flagged = [
         CandidateEvaluation(
             theta=e.theta,

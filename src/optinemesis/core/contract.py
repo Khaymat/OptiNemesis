@@ -13,7 +13,10 @@ from optinemesis.core.errors import ContractError
 from optinemesis.core.fingerprint import canonical_json, fingerprint
 
 METRIC_NAMES = ("rank_biserial", "median_gap", "probability_superiority")
-INITIALIZATION_POLICIES = ("independent", "paired")
+# v0.1: primary metric frozen to rank_biserial; paired initialization not honestly
+# implementable across heterogeneous adapters (DE vs single-point methods). Only
+# independent is supported. Kept as tuple for schema clarity.
+INITIALIZATION_POLICIES = ("independent",)
 META_SEARCH_METHODS = ("random", "lhs")
 
 RHO_MAX = 1.0e6
@@ -115,6 +118,16 @@ class MetricPlan:
     def __post_init__(self) -> None:
         if self.primary not in METRIC_NAMES:
             raise ContractError(f"primary metric {self.primary!r} is not a known metric")
+        # v0.1: primary frozen to rank_biserial per DESIGN.md §2. Other
+        # values are schema-valid but would require recalibrating epsilon_min
+        # (which is defined on rank-biserial scale) and changing the
+        # nomination/validation statistics. Reject here rather than silently
+        # ignoring the plan (audit MINOR).
+        if self.primary != "rank_biserial":
+            raise ContractError(
+                f"primary metric {self.primary!r} not supported in v0.1; "
+                "only 'rank_biserial' is frozen for this version"
+            )
         unknown = [m for m in self.exploratory if m not in METRIC_NAMES]
         if unknown:
             raise ContractError(f"unknown exploratory metrics: {unknown}")
@@ -300,6 +313,8 @@ class Contract:
         return fingerprint(self.to_dict())
 
     def to_dict(self) -> dict[str, Any]:
+        # optimizer_order preserves A/B label order through JSON sorted-key
+        # serialization (canonical_json sorts dict keys, so raw dict order is lost).
         d: dict[str, Any] = {
             "schema_version": "1",
             "contract_id": "",
@@ -311,6 +326,7 @@ class Contract:
             "bounds": self.study.bounds.to_spec(),
             "budget": self.study.budget,
             "initialization_policy": self.study.initialization_policy,
+            "optimizer_order": [o.name for o in self.study.optimizers],
             "seeds": {
                 "root_entropy": self.study.seeds.root_entropy,
                 "n_theta_candidates": self.study.seeds.n_theta_candidates,
